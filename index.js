@@ -8,7 +8,9 @@ const importLazy = require('import-lazy')(require);
 const binCheck = importLazy('bin-check');
 const binVersionCheck = importLazy('bin-version-check');
 const download = importLazy('download');
-const osFilterObj = importLazy('os-filter-obj');
+const osFilterObject = importLazy('os-filter-obj');
+
+const urlReplacer = require('./url-replacer');
 
 const statAsync = pify(fs.stat);
 const chmodAsync = pify(fs.chmod);
@@ -132,14 +134,14 @@ module.exports = class BinWrapper {
 	runCheck(cmd) {
 		return binCheck(this.path(), cmd).then(works => {
 			if (!works) {
-				throw new Error(`The \`${this.path()}\` binary doesn't seem to work correctly`);
+				throw new Error(
+					`The \`${this.path()}\` binary doesn’t seem to work correctly`
+				);
 			}
 
 			if (this.version()) {
 				return binVersionCheck(this.path(), this.version());
 			}
-
-			return Promise.resolve();
 		});
 	}
 
@@ -164,43 +166,56 @@ module.exports = class BinWrapper {
 	 * @api private
 	 */
 	download() {
-		const files = osFilterObj(this.src() || []);
+		const files = osFilterObject(this.src() || []);
 		const urls = [];
 
 		if (files.length === 0) {
-			return Promise.reject(new Error('No binary found matching your system. It\'s probably not supported.'));
+			return Promise.reject(
+				new Error(
+					'No binary found matching your system. It’s probably not supported.'
+				)
+			);
 		}
 
 		files.forEach(file => urls.push(file.url));
 
-		return Promise.all(urls.map(url => download(url, this.dest(), {
-			extract: true,
-			strip: this.options.strip
-		}))).then(result => {
-			const resultingFiles = flatten(result.map((item, index) => {
-				if (Array.isArray(item)) {
-					return item.map(file => file.path);
-				}
+		return Promise.all(
+			urls.map(urlReplacer).map(url =>
+				download(url, this.dest(), {
+					extract: true,
+					strip: this.options.strip
+				})
+			)
+		).then(result => {
+			const resultingFiles = flatten(
+				result.map((item, index) => {
+					if (Array.isArray(item)) {
+						return item.map(file => file.path);
+					}
 
-				const parsedUrl = url.parse(files[index].url);
-				const parsedPath = path.parse(parsedUrl.pathname);
+					// eslint-disable-next-line node/no-deprecated-api
+					const parsedUrl = url.parse(files[index].url);
+					const parsedPath = path.parse(parsedUrl.pathname);
 
-				return parsedPath.base;
-			}));
+					return parsedPath.base;
+				})
+			);
 
-			return Promise.all(resultingFiles.map(fileName => {
-				return chmodAsync(path.join(this.dest(), fileName), 0o755);
-			}));
+			return Promise.all(
+				resultingFiles.map(fileName => {
+					return chmodAsync(path.join(this.dest(), fileName), 0o755);
+				})
+			);
 		});
 	}
 };
 
-function flatten(arr) {
-	return arr.reduce((acc, elem) => {
-		if (Array.isArray(elem)) {
-			acc.push(...elem);
+function flatten(array) {
+	return array.reduce((acc, element) => {
+		if (Array.isArray(element)) {
+			acc.push(...element);
 		} else {
-			acc.push(elem);
+			acc.push(element);
 		}
 
 		return acc;

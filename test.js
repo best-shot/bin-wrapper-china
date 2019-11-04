@@ -1,13 +1,13 @@
-import fs from 'fs';
-import path from 'path';
-import nock from 'nock';
-import pathExists from 'path-exists';
-import pify from 'pify';
-import rimraf from 'rimraf';
-import test from 'ava';
-import tempy from 'tempy';
-import executable from 'executable';
-import Fn from '.';
+const fs = require('fs');
+const path = require('path');
+const nock = require('nock');
+const pathExists = require('path-exists');
+const pify = require('pify');
+const rimraf = require('rimraf');
+const test = require('ava');
+const tempy = require('tempy');
+const executable = require('executable');
+const Fn = require('.');
 
 const rimrafP = pify(rimraf);
 const fixture = path.join.bind(path, __dirname, 'fixtures');
@@ -54,9 +54,7 @@ test('set a version range to test against', t => {
 });
 
 test('get the binary path', t => {
-	const bin = new Fn()
-		.dest('tmp')
-		.use('foo');
+	const bin = new Fn().dest('tmp').use('foo');
 
 	t.is(bin.path(), path.join('tmp', 'foo'));
 });
@@ -119,7 +117,11 @@ test('error if no binary is found and no source is provided', async t => {
 		.dest(tempy.directory())
 		.use(process.platform === 'win32' ? 'gifsicle.exe' : 'gifsicle');
 
-	await t.throws(bin.run(), 'No binary found matching your system. It\'s probably not supported.');
+	await t.throwsAsync(() => bin.run(), {
+		instanceOf: Error,
+		message:
+			'No binary found matching your system. It’s probably not supported.'
+	});
 });
 
 test('downloaded files are set to be executable', async t => {
