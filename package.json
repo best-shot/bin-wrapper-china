@@ -1,6 +1,6 @@
 {
 	"name": "bin-wrapper-china",
-	"version": "0.0.2",
+	"version": "0.1.0",
 	"description": "Binary mirror download link replacement for mainland China",
 	"license": "MIT",
 	"repository": "best-shot/bin-wrapper-china",
